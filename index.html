@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wikipedia Page Information</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Flowbite CSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@1.7.0/dist/flowbite.min.css" rel="stylesheet">
+  
+  <style>
+    /* Additional custom styles */
+    .mw-file-element {
+      display: block;
+      margin: 20px auto;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .suggestion-item {
+      cursor: pointer;
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+      transition: background-color 0.3s;
+    }
+    .suggestion-item:hover {
+      background-color: #f3f4f6;
+    }
+    .category-item a {
+      display: block;
+      margin-bottom: 4px;
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .category-item a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="container mx-auto p-4 mt-10 bg-white rounded-lg shadow-md">
+    <h1 class="text-3xl font-bold text-blue-600 text-center mb-6">Wikipedia Page Information</h1>
+    
+    <div class="mb-6 relative">
+      <label for="urlInput" class="block text-lg font-medium text-gray-700 mb-2">Enter Wikipedia Page Title:</label>
+      <input type="text" id="urlInput" placeholder="ex: Node.js" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500" oninput="searchSuggestions(this.value)">
+      <div id="suggestions" class="mt-2 absolute bg-white border border-gray-300 rounded-md shadow-lg hidden"></div>
+      <button onclick="fetchWikipediaData()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Fetch Data</button>
+    </div>
+
+    <!-- Fetched data container div -->
+    <div id="fetchedData" class="hidden">
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">Title:</strong> <span id="title" class="text-gray-900 font-semibold"></span>
+      </div>
+      <div class="mb-4">
+        <img id="image" class="mw-file-element" src="" alt="Image">
+      </div>
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">Summary:</strong>
+        <p id="summary" class="text-gray-700 leading-relaxed"></p>
+      </div>
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">First Section Content:</strong>
+        <p id="firstSectionContent" class="text-gray-700 leading-relaxed"></p>
+      </div>
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">Second Section Content:</strong>
+        <p id="secondSectionContent" class="text-gray-700 leading-relaxed"></p>
+      </div>
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">Third Section Content:</strong>
+        <p id="thirdSectionContent" class="text-gray-700 leading-relaxed"></p>
+      </div>
+      <div class="mb-4">
+        <strong class="text-lg text-blue-600">Fourth Section Content:</strong>
+        <p id="fourthSectionContent" class="text-gray-700 leading-relaxed"></p>
+      </div>
+      <div class="mt-6">
+        <strong class="text-lg text-blue-600">Categories:</strong>
+        <ul id="categoriesList" class="list-none pl-0 text-gray-700">
+          <!-- Categories will be appended here -->
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchWikipediaData() {
+      try {
+        const url = document.getElementById('urlInput').value;
+        const response = await fetch(`http://localhost:3000/api/nodejs?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+
+        console.log('Fetched Data:', data);
+
+        document.getElementById('title').textContent = data.title;
+        document.getElementById('summary').textContent = data.summary;
+        document.getElementById('firstSectionContent').textContent = data.firstSectionContent;
+        document.getElementById('secondSectionContent').textContent = data.secondSectionContent;
+        document.getElementById('thirdSectionContent').textContent = data.thirdSectionContent;
+        document.getElementById('fourthSectionContent').textContent = data.fourthSectionContent;
+
+        const imageElement = document.getElementById('image');
+        if (data.imageUrl) {
+          let imageUrl = data.imageUrl;
+          if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+            imageUrl = 'https:' + imageUrl;
+          }
+          imageElement.src = imageUrl;
+          imageElement.alt = data.title || 'Image';
+          imageElement.classList.remove('hidden');
+        } else {
+          imageElement.src = 'no_image_available.png';
+          imageElement.alt = 'No image available';
+          imageElement.classList.add('hidden');
+        }
+
+        const categoriesList = document.getElementById('categoriesList');
+        categoriesList.innerHTML = '';
+        data.categories.forEach((categoryUrl) => {
+          const categoryName = categoryUrl.split('/').pop().replace(/_/g, ' ').replace(/^Category:/, '');
+          const cleanedCategoryName = categoryName.replace(/\d+/g, '').trim();
+          const listItem = document.createElement('li');
+          listItem.className = 'category-item';
+          const categoryLink = document.createElement('a');
+          categoryLink.href = 'https://en.wikipedia.org/' + categoryUrl;
+          categoryLink.textContent = categoryName;
+          listItem.appendChild(categoryLink);
+          categoriesList.appendChild(listItem);
+        });
+
+        document.getElementById('fetchedData').classList.remove('hidden');
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    }
+
+    async function searchSuggestions(query) {
+      if (query.length < 2) {
+        document.getElementById('suggestions').classList.add('hidden');
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${query}&limit=5&format=json&origin=*`);
+        const data = await response.json();
+
+        const suggestions = data[1];
+        const suggestionsContainer = document.getElementById('suggestions');
+        suggestionsContainer.innerHTML = '';
+
+        if (suggestions.length > 0) {
+          suggestionsContainer.classList.remove('hidden');
+          suggestions.forEach((suggestion, index) => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.textContent = suggestion;
+            item.onclick = () => {
+              document.getElementById('urlInput').value = data[3][index];
+              document.getElementById('suggestions').classList.add('hidden');
+            };
+            suggestionsContainer.appendChild(item);
+          });
+        } else {
+          suggestionsContainer.classList.add('hidden');
+        }
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+      }
+    }
+  </script>
+
+  <footer class="bg-cyan-500 text-white text-center py-4 mt-8">
+    Created @ 2023 by <a href="https://www.facebook.com/hanif.herdianto.3/" class="text-white underline">Hanif Herdianto</a>
+  </footer>
+</body>
+</html>
